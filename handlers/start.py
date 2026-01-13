@@ -2,9 +2,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 import textwrap
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    import textwrap
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         textwrap.dedent("""\
             <b>¡Hola! 👋</b>
