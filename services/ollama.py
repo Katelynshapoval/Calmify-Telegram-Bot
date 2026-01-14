@@ -14,7 +14,7 @@ async def generate_response(prompt: str) -> str:
                     "prompt": prompt,
                     "stream": False
                 },
-                timeout=5000  # Max wait time for the model response
+                timeout=None  # Max wait time for the model response
             )
 
             # Raise exception for HTTP errors (4xx / 5xx)

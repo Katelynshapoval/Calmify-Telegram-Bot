@@ -17,9 +17,9 @@ No escribas introducciones, listas ni recomendaciones obvias.
 
     prompt = f"{SYSTEM_INSTRUCTIONS}\n\nConsejo:"
 
+    # Show "typing..." action while waiting for AI response
     typing_done = asyncio.get_event_loop().create_future()
 
-    # Show "typing..." while waiting for the AI response
     async def send_typing():
         while not typing_done.done():
             await context.bot.send_chat_action(
@@ -30,13 +30,17 @@ No escribas introducciones, listas ni recomendaciones obvias.
 
     asyncio.create_task(send_typing())
 
+    # Send a temporary placeholder message
+    temp_msg = await update.message.reply_text("⏳ Generando consejo...")
+
     try:
         # Generate the tip using Ollama
         ai_text = await generate_response(prompt)
     except Exception as e:
         ai_text = f"Error generating tip: {e}"
     finally:
+        # Stop the typing indicator
         typing_done.set_result(True)
 
-    # Send the tip to the user
-    await update.message.reply_text(ai_text, parse_mode="HTML")
+    # Replace the temporary message with the AI-generated tip
+    await temp_msg.edit_text(ai_text, parse_mode="HTML")
