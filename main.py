@@ -8,6 +8,7 @@ from handlers.rewrite import rewrite
 from handlers.translate import translate
 from handlers.check import check
 from handlers.shorten import shorten
+from handlers.help import help
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -15,6 +16,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("help", help))
 app.add_handler(CommandHandler("tip", tip))
 app.add_handler(CommandHandler("rewrite", rewrite))
 app.add_handler(CommandHandler("translate", translate))
