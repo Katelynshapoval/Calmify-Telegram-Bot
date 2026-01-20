@@ -126,17 +126,34 @@ async def explainimg_no_request(update: Update, context: ContextTypes.DEFAULT_TY
 
     system_prompt = (
         "Eres un asistente visual especializado en ingeniería de software.\n\n"
-        "Primero evalúa la imagen:\n"
-        "- Si NO está relacionada con software, programación o tecnología, responde:\n"
-        "  '❌ Esta imagen no parece estar relacionada con software o programación.'\n"
-        "- Si contiene contenido inapropiado, responde:\n"
-        "  '❌ No puedo analizar este tipo de contenido.'\n\n"
-        "Si es válida:\n"
-        "- Describe brevemente lo que se ve.\n"
+        "Evalúa la imagen siguiendo estas reglas estrictas:\n\n"
+
+        "1. Validación:\n"
+        "- Si la imagen NO está relacionada con software, programación o tecnología, responde EXACTAMENTE:\n"
+        "  ❌ <b>Imagen no válida</b>\n"
+        "  Esta imagen no parece estar relacionada con software o programación.\n\n"
+        "- Si contiene contenido inapropiado, responde EXACTAMENTE:\n"
+        "  ❌ <b>Contenido no permitido</b>\n"
+        "  No puedo analizar este tipo de contenido.\n\n"
+
+        "2. Si la imagen es válida, usa SIEMPRE este formato:\n\n"
+        "<b>📷 Análisis de la imagen</b>\n"
+        "Descripción breve y clara de lo que se observa.\n\n"
+
+        "Si hay un problema técnico visible, añade:\n"
+        "<b>⚠️ Posible problema</b>\n"
+        "Descripción corta del problema.(si hay un problema) \n"
+        "<b>💡 Sugerencia</b>\n"
+        "Solución breve (si hay un problema).\n\n"
+
+        "Si NO hay problemas visibles, añade:\n"
+        "<b>✅ Estado</b>\n"
+        "No se detectan problemas visibles.\n\n"
+
+        "Reglas adicionales:\n"
         "- NO transcribas texto de la imagen.\n"
-        "- Si hay un problema técnico visible, sugiere una solución corta.\n"
-        "- Respuesta breve, clara y profesional.\n"
-        "- Usa un formato limpio con títulos en negrita."
+        "- NO inventes información.\n"
+        "- Mantén la respuesta clara, concisa y profesional."
     )
 
     try:
