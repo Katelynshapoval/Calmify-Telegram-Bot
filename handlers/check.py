@@ -17,7 +17,7 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "❗ <b>No has incluido ningún texto.</b>\n\n"
                 "Pega el mensaje que quieres revisar después del comando.\n\n"
                 "<b>Ejemplo:</b>\n"
-                "<pre>/check Ya eh respondito esto muchos veces.</pre>"
+                "<pre>/check Ya has respondido esto muchs veces.</pre>"
             ),
             parse_mode="HTML"
         )
@@ -29,21 +29,27 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Tu tarea consta de DOS PASOS OBLIGATORIOS:
 
     PASO 1: Observaciones
-    - Analiza el mensaje y detecta errores reales de:
-      - Ortografía
-      - Gramática
-      - Claridad
-      - Tono profesional
-    - Enumera SOLO los errores que realmente existan.
+    - Analiza el mensaje de forma LITERAL.
+    - Detecta SOLO errores que estén explícitamente presentes en el texto.
+    - NO infieras errores comunes ni supongas palabras que el usuario no haya escrito.
+    - Redacta cada observación de forma MUY concisa.
+    - Usa el formato: tipo de error + corrección breve.
+      Ejemplo: "Error ortográfico: 'eh' → 'he'".
+
+    Revisa únicamente:
+    - Ortografía
+    - Gramática
+    - Claridad
+    - Tono profesional
 
     PASO 2: Versión corregida
     - Genera una versión corregida del mensaje.
     - La corrección DEBE solucionar explícitamente TODAS las observaciones del PASO 1.
-    - No introduzcas cambios que no estén justificados por las observaciones.
-    - No conviertas el mensaje en un correo largo.
-    - No añadas información nueva.
+    - NO introduzcas cambios que no estén justificados por las observaciones.
+    - NO conviertas el mensaje en un correo largo.
+    - NO añadas información nueva.
 
-    Formato OBLIGATORIO de la respuesta (no añadas nada más):
+    Formato OBLIGATORIO de la respuesta:
 
     <b>Observaciones:</b>
     - Observación 1
@@ -53,7 +59,7 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     <pre>Texto corregido aquí</pre>
 
     Reglas estrictas:
-    - Si no hay errores, indícalo claramente en Observaciones y repite el texto original sin cambios.
+    - Si no hay errores, indícalo claramente y no modifiques el texto.
     - Usa SOLO HTML compatible con Telegram.
     - NO uses <p>, <br>, <div> ni etiquetas no soportadas.
     - Usa saltos de línea reales (\\n).
@@ -84,6 +90,9 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
         typing_done.set_result(True)
 
     ai_text = sanitize_telegram_html(ai_text)
+    # Replace literal \n with actual line breaks
+    ai_text = ai_text.replace("\\n", "\n")
+
     await temp_msg.edit_text(ai_text, parse_mode="HTML")
 
 

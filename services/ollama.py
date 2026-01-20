@@ -11,8 +11,9 @@ async def generate_response(prompt: str) -> str:
                 "http://localhost:11434/api/generate",
                 json={
                     "model": "gpt-oss:20b",
+                    # "model": "gemma2:latest",
                     "prompt": prompt,
-                    "stream": False
+                    "stream": False,
                 },
                 timeout=None  # Max wait time for the model response
             )

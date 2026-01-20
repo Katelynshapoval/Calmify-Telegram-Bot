@@ -65,6 +65,8 @@ El resultado debe ser un mensaje profesional listo para enviar.
         typing_done.set_result(True)
 
     ai_text = sanitize_telegram_html(ai_text)
+    # Replace literal \n with actual line breaks
+    ai_text = ai_text.replace("\\n", "\n")
     await temp_msg.edit_text(ai_text, parse_mode="HTML")
 
 

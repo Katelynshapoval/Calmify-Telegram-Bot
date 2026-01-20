@@ -24,7 +24,7 @@ Ejemplo: <pre>/rewrite Ya he respondido a esto varias veces, deberían revisarlo
 Ejemplo: <pre>/translate inglés Hola, solo quería confirmar la reunión de mañana.</pre>
 
 <b>/check</b> - Revisa errores de ortografía, gramática y tono, y sugiere correcciones.
-Ejemplo: <pre>/check Ya eh respondido esto muchas veces.</pre>
+Ejemplo: <pre>/check Ya has respondido esto muchs veces.</pre>
 
 <b>/shorten</b> - Hace un mensaje largo más conciso y directo.
 Ejemplo: <pre>/shorten Hola, solo quería comentar que esta cuestión ya ha sido respondida varias veces y si necesitas puedo enviarte nuevamente la información.</pre>

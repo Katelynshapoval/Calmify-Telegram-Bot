@@ -61,9 +61,6 @@ El resultado debe ser un mensaje listo para enviar.
     finally:
         typing_done.set_result(True)
 
-    # Sanitize any unsupported HTML
-    ai_text = sanitize_telegram_html(ai_text)
-
     # Sanitize unsupported HTML
     ai_text = sanitize_telegram_html(ai_text)
 

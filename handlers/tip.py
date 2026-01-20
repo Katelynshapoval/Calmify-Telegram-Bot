@@ -42,5 +42,8 @@ No escribas introducciones, listas ni recomendaciones obvias.
         # Stop the typing indicator
         typing_done.set_result(True)
 
+    # Replace literal \n with actual line breaks
+    ai_text = ai_text.replace("\\n", "\n")
+
     # Replace the temporary message with the AI-generated tip
     await temp_msg.edit_text(ai_text, parse_mode="HTML")
