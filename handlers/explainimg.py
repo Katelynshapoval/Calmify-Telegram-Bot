@@ -1,15 +1,15 @@
 import os
 import uuid
+import asyncio
 import ollama
+import re
 
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from telegram.ext import (
-    ContextTypes,
-)
+from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
 # -------- CONFIG --------
@@ -22,7 +22,7 @@ if not os.path.exists(IMG_DIR):
 
 # -------- OLLAMA IMAGE CALL --------
 
-async def ollama_image_request(
+def _ollama_image_request_sync(
         system_prompt: str,
         user_message: str,
         photo_path: str,
@@ -41,13 +41,35 @@ async def ollama_image_request(
     return response["message"]["content"]
 
 
+async def ollama_image_request(
+        system_prompt: str,
+        user_message: str,
+        photo_path: str,
+) -> str:
+    return await asyncio.to_thread(
+        _ollama_image_request_sync,
+        system_prompt,
+        user_message,
+        photo_path,
+    )
+
+
+# -------- TYPING INDICATOR --------
+
+async def typing_loop(context, chat_id, stop_event: asyncio.Event):
+    while not stop_event.is_set():
+        await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+        await asyncio.sleep(4)
+
+
 # -------- /explainimg COMMAND --------
 
 async def explainimg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
 
     await update.message.reply_text(
-        "🖼️ <b>Envía la imagen que quieres analizar.</b>",
+        "🖼️ <b>Envía la imagen que quieres analizar.</b>\n\n"
+        "Debe estar relacionada con <b>software, programación o tecnología</b>.",
         parse_mode="HTML",
     )
 
@@ -60,17 +82,11 @@ async def explainimg_receive_image(update: Update, context: ContextTypes.DEFAULT
     if not context.user_data.get("awaiting_image"):
         return
 
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id,
-        action=ChatAction.TYPING,
-    )
-
     photo = update.message.photo[-1]
     file = await photo.get_file()
 
     filename = f"{uuid.uuid4().hex}.jpg"
     photo_path = os.path.join(IMG_DIR, filename)
-
     await file.download_to_drive(photo_path)
 
     context.user_data["photo_path"] = photo_path
@@ -78,21 +94,12 @@ async def explainimg_receive_image(update: Update, context: ContextTypes.DEFAULT
     context.user_data["awaiting_request"] = True
 
     keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "Sin solicitud",
-                    callback_data="explainimg_no_request",
-                )
-            ]
-        ]
+        [[InlineKeyboardButton("Sin solicitud", callback_data="explainimg_no_request")]]
     )
 
     await update.message.reply_text(
-        (
-            "✍️ <b>¿Qué quieres que haga con la imagen?</b>\n\n"
-            "Escribe tu solicitud o pulsa <b>Sin solicitud</b>."
-        ),
+        "✍️ <b>¿Qué quieres que haga con la imagen?</b>\n\n"
+        "Escribe tu solicitud o pulsa <b>Sin solicitud</b>.",
         reply_markup=keyboard,
         parse_mode="HTML",
     )
@@ -104,33 +111,48 @@ async def explainimg_no_request(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
 
-    await query.message.chat.send_action(ChatAction.TYPING)
-
+    chat_id = query.message.chat.id
     photo_path = context.user_data.get("photo_path")
 
-    system_prompt = (
-        "Eres un asistente visual.\n\n"
-        "Reglas estrictas:\n"
-        "- Describe brevemente lo que ves en la imagen.\n"
-        "- NO copies ni transcribas texto presente en la imagen.\n"
-        "- Si hay un error o problema visible, sugiere una solución breve.\n"
-        "- Sé conciso.\n"
-        "- No inventes información."
+    placeholder = await query.edit_message_text(
+        "⏳ <i>Generando respuesta…</i>",
+        parse_mode="HTML",
     )
 
-    user_message = "Describe la imagen."
+    stop_event = asyncio.Event()
+    typing_task = asyncio.create_task(
+        typing_loop(context, chat_id, stop_event)
+    )
+
+    system_prompt = (
+        "Eres un asistente visual especializado en ingeniería de software.\n\n"
+        "Primero evalúa la imagen:\n"
+        "- Si NO está relacionada con software, programación o tecnología, responde:\n"
+        "  '❌ Esta imagen no parece estar relacionada con software o programación.'\n"
+        "- Si contiene contenido inapropiado, responde:\n"
+        "  '❌ No puedo analizar este tipo de contenido.'\n\n"
+        "Si es válida:\n"
+        "- Describe brevemente lo que se ve.\n"
+        "- NO transcribas texto de la imagen.\n"
+        "- Si hay un problema técnico visible, sugiere una solución corta.\n"
+        "- Respuesta breve, clara y profesional.\n"
+        "- Usa un formato limpio con títulos en negrita."
+    )
 
     try:
         result = await ollama_image_request(
             system_prompt=system_prompt,
-            user_message=user_message,
+            user_message="Describe la imagen.",
             photo_path=photo_path,
         )
-    except Exception as e:
-        result = f"❌ Error al analizar la imagen: {e}"
+    except Exception:
+        result = "❌ <b>Error</b>\nNo se pudo analizar la imagen."
 
-    await query.edit_message_text(result)
+    stop_event.set()
+    await typing_task
 
+    result = markdown_to_telegram_html(result)
+    await placeholder.edit_text(result, parse_mode="HTML")
     context.user_data.clear()
 
 
@@ -140,22 +162,29 @@ async def explainimg_user_request(update: Update, context: ContextTypes.DEFAULT_
     if not context.user_data.get("awaiting_request"):
         return
 
-    await context.bot.send_chat_action(
-        chat_id=update.effective_chat.id,
-        action=ChatAction.TYPING,
+    chat_id = update.effective_chat.id
+    photo_path = context.user_data.get("photo_path")
+    user_request = update.message.text
+
+    placeholder = await update.message.reply_text(
+        "⏳ <i>Generando respuesta…</i>",
+        parse_mode="HTML",
     )
 
-    user_request = update.message.text
-    photo_path = context.user_data.get("photo_path")
+    stop_event = asyncio.Event()
+    typing_task = asyncio.create_task(
+        typing_loop(context, chat_id, stop_event)
+    )
 
     system_prompt = (
-        "Eres un asistente visual.\n\n"
+        "Eres un asistente visual especializado en ingeniería de software.\n\n"
         "Reglas estrictas:\n"
+        "- Si la imagen no está relacionada con software o programación, indícalo brevemente.\n"
+        "- Si el contenido es inapropiado, rechaza la solicitud.\n"
         "- Cumple SOLO la solicitud del usuario.\n"
-        "- No añadas información adicional.\n"
-        "- No describas la imagen si no se solicita explícitamente.\n"
-        "- NO transcribas texto presente en la imagen.\n"
-        "- No hagas suposiciones."
+        "- NO transcribas texto de la imagen.\n"
+        "- No añadas contexto innecesario.\n"
+        "- Respuesta clara, breve y bien estructurada."
     )
 
     try:
@@ -164,9 +193,22 @@ async def explainimg_user_request(update: Update, context: ContextTypes.DEFAULT_
             user_message=user_request,
             photo_path=photo_path,
         )
-    except Exception as e:
-        result = f"❌ Error al procesar la solicitud: {e}"
+    except Exception:
+        result = "❌ <b>Error</b>\nNo se pudo procesar la solicitud."
 
-    await update.message.reply_text(result)
+    stop_event.set()
+    await typing_task
 
+    result = markdown_to_telegram_html(result)
+    await placeholder.edit_text(result, parse_mode="HTML")
     context.user_data.clear()
+
+
+def markdown_to_telegram_html(text: str) -> str:
+    """
+    Converts basic Markdown (**bold**) to Telegram-compatible HTML.
+    """
+    # Convert **bold** to <b>bold</b>
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+    return text

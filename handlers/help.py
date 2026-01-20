@@ -28,6 +28,9 @@ Ejemplo: <pre>/check Ya has respondido esto muchs veces.</pre>
 
 <b>/shorten</b> - Hace un mensaje largo más conciso y directo.
 Ejemplo: <pre>/shorten Hola, solo quería comentar que esta cuestión ya ha sido respondida varias veces y si necesitas puedo enviarte nuevamente la información.</pre>
+        
+<b>/explainimg</b> - Analiza una imagen de software y la explica o responde a tu solicitud.
+Ejemplo: <pre>/explainimg</pre>
         """),
         parse_mode="HTML"
     )

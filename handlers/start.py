@@ -15,6 +15,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             - Revisar errores de ortografía, gramática y tono, y sugerir correcciones (/check).
             - Acortar mensajes largos manteniendo claridad y profesionalismo (/shorten).
             - Traducir y pulir mensajes a otros idiomas (/translate).
+            - Analizar imágenes técnicas, explicarlas o responder a tu solicitud (/explainimg).
 
             Para ver todos los comandos y ejemplos de uso, escribe <b>/help</b>.
         """),
