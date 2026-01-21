@@ -4,64 +4,145 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
-from services.ollama import generate_response  # same service you already use
+from services.ollama import generate_response
+from utils.guard import reject_if_busy  # 👈 NEW IMPORT
+
+# -------- CONFIG --------
+
+BUSY_KEY = "is_busy"
+
+ALLOWED_TOPICS = [
+    "correo", "email", "mail", "escribir", "redactar", "redacción",
+    "reescribir", "rewrite", "traducir", "traducción", "translate",
+    "resumir", "resumen", "shorten", "corregir", "corrección",
+    "ortografía", "gramática", "tono", "formal", "informal",
+    "mensaje", "texto",
+]
 
 
-# -------- HELPERS --------
+# -------- FORMATTERS --------
 
 def markdown_to_telegram_html(text: str) -> str:
-    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+
+def sanitize_telegram_html(text: str) -> str:
+    for tag in ("<p>", "</p>", "<br>", "<br/>", "<br />"):
+        text = text.replace(tag, "")
     return text
 
 
-async def typing_loop(context, chat_id, stop_event: asyncio.Event):
+# -------- TYPING LOOP (BACKGROUND) --------
+
+async def _typing_loop(context: ContextTypes.DEFAULT_TYPE, chat_id: int, stop_event: asyncio.Event):
     while not stop_event.is_set():
-        await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+        try:
+            await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+        except Exception:
+            pass
         await asyncio.sleep(4)
 
 
-# -------- FALLBACK HANDLER --------
-async def fallback_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if (
-            context.user_data.get("awaiting_image")
-            or context.user_data.get("awaiting_request")
-    ):
-        return
+# -------- BACKGROUND WORKER --------
 
-    user_text = update.message.text
-    chat_id = update.effective_chat.id
-
-    placeholder = await update.message.reply_text(
-        "⏳ <i>Analizando tu mensaje…</i>",
-        parse_mode="HTML",
-    )
-
-    stop_event = asyncio.Event()
+async def _process_fallback_request(
+        context: ContextTypes.DEFAULT_TYPE,
+        chat_id: int,
+        message_id: int,
+        user_text: str,
+):
+    stop_typing = asyncio.Event()
     typing_task = asyncio.create_task(
-        typing_loop(context, chat_id, stop_event)
-    )
-
-    system_prompt = (
-        "Eres un asistente especializado en redacción profesional.\n\n"
-        "Si el mensaje está relacionado con escritura, corrección, mejora de textos o correos:\n"
-        "- Responde de forma breve y útil.\n\n"
-        "Si NO lo está, responde EXACTAMENTE:\n\n"
-        "❌ <b>No puedo ayudarte con esa consulta</b>\n"
-        "Este bot está enfocado en redacción y mejora de textos.\n\n"
-        "Formato obligatorio:\n"
-        "<b>✍️ Respuesta</b>\n"
-        "Texto breve y claro."
+        _typing_loop(context, chat_id, stop_typing)
     )
 
     try:
-        ai_text = await generate_response(
-            f"{system_prompt}\n\nMensaje:\n{user_text}\n\nRespuesta:"
+        SYSTEM_INSTRUCTIONS = """\
+Eres un asistente experto en redacción profesional.
+
+Responde SOLO si la solicitud está relacionada con:
+- redacción
+- corrección
+- traducción
+- mejora de textos
+
+Reglas:
+- Respuesta breve y profesional
+- No información fuera del ámbito
+- Formato obligatorio:
+
+**Respuesta**
+Contenido conciso aquí.
+"""
+
+        prompt = f"{SYSTEM_INSTRUCTIONS}\n\nSolicitud:\n{user_text}\n\nRespuesta:"
+
+        ai_text = await generate_response(prompt)
+
+        ai_text = ai_text.replace("\\n", "\n").strip()
+        ai_text = markdown_to_telegram_html(ai_text)
+        ai_text = sanitize_telegram_html(ai_text)
+
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=ai_text,
+            parse_mode="HTML",
         )
+
     except Exception:
-        ai_text = "❌ <b>Error</b>\nNo se pudo procesar el mensaje."
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text="❌ <b>Error</b>\nNo se pudo generar la respuesta.",
+            parse_mode="HTML",
+        )
 
-    stop_event.set()
-    await typing_task
+    finally:
+        stop_typing.set()
+        typing_task.cancel()
+        context.user_data[BUSY_KEY] = False
 
-    ai_text = markdown_to_telegram_html(ai_text)
-    await placeholder.edit_text(ai_text, parse_mode="HTML")
+
+# -------- FALLBACK HANDLER --------
+
+async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1️⃣ Ignore during /explainimg flow
+    if context.user_data.get("awaiting_image") or context.user_data.get("awaiting_request"):
+        return
+
+    # 2️⃣ ⛔ CENTRALIZED BUSY GUARD (HERE)
+    if await reject_if_busy(update, context, key=BUSY_KEY):
+        return
+
+    user_text = update.message.text.strip()
+    lower_text = user_text.lower()
+
+    # 3️⃣ 🚫 OUT OF SCOPE (FAST EXIT)
+    if not any(k in lower_text for k in ALLOWED_TOPICS):
+        await update.message.reply_text(
+            "❌ <b>Fuera de alcance</b>\n\n"
+            "Solo puedo ayudar con redacción y textos.\n"
+            "Usa <b>/help</b>.",
+            parse_mode="HTML",
+        )
+        return
+
+    # 4️⃣ ✅ LOCK USER (ONLY AFTER PASSING GUARD)
+    context.user_data[BUSY_KEY] = True
+
+    # 5️⃣ ⏳ PLACEHOLDER (FAST)
+    placeholder = await update.message.reply_text(
+        "⏳ <i>Generando respuesta…</i>",
+        parse_mode="HTML",
+    )
+
+    # 6️⃣ 🚀 BACKGROUND TASK (DO NOT AWAIT)
+    asyncio.create_task(
+        _process_fallback_request(
+            context=context,
+            chat_id=update.effective_chat.id,
+            message_id=placeholder.message_id,
+            user_text=user_text,
+        )
+    )
