@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
 # from services.ollama import generate_response
-from services.ollama import generate_response
+from services.openrouter import generate_response
 from utils.sanitize import sanitize_all
 
 
