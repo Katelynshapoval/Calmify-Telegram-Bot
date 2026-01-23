@@ -14,8 +14,10 @@ if not OPENROUTER_API_KEY:
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # ✅ SINGLE SOURCE OF TRUTH FOR MODEL
-# DEFAULT_MODEL = "google/gemma-3-27b-it:free"
-DEFAULT_MODEL = "meta-llama/llama-3.1-405b-instruct:free"
+DEFAULT_MODEL = "google/gemma-3-27b-it:free"
+
+
+# DEFAULT_MODEL = "meta-llama/llama-3.1-405b-instruct:free"
 
 
 def _post_chat(payload: dict) -> dict:
