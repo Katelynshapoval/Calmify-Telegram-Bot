@@ -4,8 +4,11 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
-from services.ollama import generate_response
-from utils.guard import reject_if_busy  # 👈 NEW IMPORT
+# from services.ollama import generate_response
+from services.openrouter import generate_response
+from utils.sanitize import sanitize_all
+
+from utils.guard import reject_if_busy
 
 # -------- CONFIG --------
 
@@ -78,10 +81,7 @@ Contenido conciso aquí.
         prompt = f"{SYSTEM_INSTRUCTIONS}\n\nSolicitud:\n{user_text}\n\nRespuesta:"
 
         ai_text = await generate_response(prompt)
-
-        ai_text = ai_text.replace("\\n", "\n").strip()
-        ai_text = markdown_to_telegram_html(ai_text)
-        ai_text = sanitize_telegram_html(ai_text)
+        ai_text = sanitize_all(ai_text)
 
         await context.bot.edit_message_text(
             chat_id=chat_id,

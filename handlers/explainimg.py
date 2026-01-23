@@ -2,7 +2,6 @@ import os
 import uuid
 import asyncio
 import re
-# import ollama
 import base64
 
 import requests
@@ -14,6 +13,7 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
+from services.openrouter_vision import generate_vision_response
 
 from utils.guard import reject_if_busy
 
@@ -115,10 +115,16 @@ async def _process_explainimg(
     asyncio.create_task(typing_loop(context, chat_id, stop_typing))
 
     try:
-        result = await ollama_image_request(
+        # result = await ollama_image_request(
+        #     system_prompt=system_prompt,
+        #     user_message=user_message,
+        #     photo_path=photo_path,
+        # )
+
+        result = await generate_vision_response(
             system_prompt=system_prompt,
             user_message=user_message,
-            photo_path=photo_path,
+            image_path=photo_path,
         )
 
         result = markdown_to_telegram_html(result)

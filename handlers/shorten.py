@@ -3,7 +3,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
+# from services.ollama import generate_response
 from services.ollama import generate_response
+from utils.sanitize import sanitize_all
 
 
 async def shorten(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,18 +63,8 @@ El resultado debe ser un mensaje listo para enviar.
     finally:
         typing_done.set_result(True)
 
-    # Sanitize unsupported HTML
-    ai_text = sanitize_telegram_html(ai_text)
-
-    # Replace literal \n with actual line breaks
-    ai_text = ai_text.replace("\\n", "\n")
+    ai_text = await generate_response(prompt)
+    ai_text = sanitize_all(ai_text)
 
     # Send final message
     await temp_msg.edit_text(ai_text, parse_mode="HTML")
-
-
-def sanitize_telegram_html(text: str) -> str:
-    # Remove unsupported HTML tags commonly produced by AI
-    for tag in ["<p>", "</p>", "<br>", "<br/>", "<br />"]:
-        text = text.replace(tag, "")
-    return text

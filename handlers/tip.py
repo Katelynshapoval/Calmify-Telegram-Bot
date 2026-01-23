@@ -3,7 +3,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
-from services.ollama import generate_response  # Function to call Ollama API
+# from services.ollama import generate_response
+from services.openrouter import generate_response
 
 
 async def tip(update: Update, context: ContextTypes.DEFAULT_TYPE):
