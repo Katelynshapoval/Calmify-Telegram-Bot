@@ -2,8 +2,11 @@ import os
 import uuid
 import asyncio
 import re
-import ollama
+# import ollama
+import base64
 
+import requests
+from requests.exceptions import ConnectionError, Timeout, HTTPError
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -22,6 +25,11 @@ BUSY_KEY = "is_busy_explainimg"
 os.makedirs(IMG_DIR, exist_ok=True)
 
 
+def image_to_base64(path: str) -> str:
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+
 # ---------------- FORMAT ----------------
 
 def markdown_to_telegram_html(text: str) -> str:
@@ -31,18 +39,46 @@ def markdown_to_telegram_html(text: str) -> str:
 # ---------------- OLLAMA ----------------
 
 def _ollama_image_request_sync(system_prompt, user_message, photo_path):
-    response = ollama.chat(
-        model="gemma3",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": user_message,
-                "images": [photo_path],
+    try:
+        image_b64 = image_to_base64(photo_path)
+
+        response = requests.post(
+            "http://localhost:11434/api/chat",
+            json={
+                "model": "gemma3",  # must be a vision-capable model
+                "stream": False,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": user_message,
+                        "images": [image_b64],
+                    },
+                ],
             },
-        ],
-    )
-    return response["message"]["content"]
+            timeout=None,
+        )
+
+        response.raise_for_status()
+        data = response.json()
+
+        return data["message"]["content"]
+
+    except ConnectionError:
+        return "❌ Ollama no está iniciado o no se puede conectar."
+
+    except Timeout:
+        return "❌ Tiempo de espera excedido."
+
+    except HTTPError as e:
+        status = e.response.status_code if e.response else "?"
+        return f"❌ Error HTTP ({status})."
+
+    except Exception:
+        return "❌ Error inesperado al analizar la imagen."
 
 
 async def ollama_image_request(system_prompt, user_message, photo_path):
