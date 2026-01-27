@@ -13,6 +13,8 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
+
+from handlers.fallback import fallback
 from services.openrouter_vision import generate_vision_response
 
 from utils.guard import reject_if_busy
@@ -115,17 +117,17 @@ async def _process_explainimg(
     asyncio.create_task(typing_loop(context, chat_id, stop_typing))
 
     try:
-        # result = await ollama_image_request(
-        #     system_prompt=system_prompt,
-        #     user_message=user_message,
-        #     photo_path=photo_path,
-        # )
-
-        result = await generate_vision_response(
+        result = await ollama_image_request(
             system_prompt=system_prompt,
             user_message=user_message,
-            image_path=photo_path,
+            photo_path=photo_path,
         )
+
+        # result = await generate_vision_response(
+        #     system_prompt=system_prompt,
+        #     user_message=user_message,
+        #     image_path=photo_path,
+        # )
 
         result = markdown_to_telegram_html(result)
 
@@ -251,6 +253,10 @@ async def explainimg_no_request(update: Update, context: ContextTypes.DEFAULT_TY
 # ---------------- USER TEXT REQUEST ----------------
 
 async def explainimg_user_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get("awaiting_request"):
+        await fallback(update, context)
+        return
+
     # ✅ Always acknowledge
     placeholder = await update.message.reply_text(
         "⏳ <i>Generando respuesta…</i>",

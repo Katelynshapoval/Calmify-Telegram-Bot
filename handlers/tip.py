@@ -3,8 +3,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
-# from services.ollama import generate_response
-from services.openrouter import generate_response
+from services.ollama import generate_response
+# from services.openrouter import generate_response
+from utils.sanitize import sanitize_all
 
 
 async def tip(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +45,8 @@ No escribas introducciones, listas ni recomendaciones obvias.
         typing_done.set_result(True)
 
     # Replace literal \n with actual line breaks
-    ai_text = ai_text.replace("\\n", "\n")
+    ai_text = await generate_response(prompt)
+    ai_text = sanitize_all(ai_text)
 
     # Replace the temporary message with the AI-generated tip
     await temp_msg.edit_text(ai_text, parse_mode="HTML")

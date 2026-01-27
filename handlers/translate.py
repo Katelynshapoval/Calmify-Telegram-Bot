@@ -3,8 +3,9 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
-# from services.ollama import generate_response
-from services.openrouter import generate_response
+from services.ollama import generate_response
+# from services.openrouter import generate_response
+from utils.sanitize import sanitize_all
 
 
 async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -25,23 +26,26 @@ async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = " ".join(context.args[1:])
 
     SYSTEM_INSTRUCTIONS = f"""\
-Vas a recibir mensajes destinados a correos electrónicos o chats laborales.
-Tu tarea es **traducir el mensaje al {target_language} y mejorar ligeramente su redacción**
-para que suene profesional, natural y adecuada para comunicación corporativa.
+    Eres un MOTOR DE TRADUCCIÓN.
 
-Reglas estrictas:
-1. No cambies el significado del mensaje original.
-2. Mejora la fluidez y el tono profesional si es necesario.
-3. No añadas información nueva.
-4. Evita un tono excesivamente formal o robótico.
-5. Usa SOLO HTML compatible con Telegram.
-6. NO uses <p>, <br>, <div> ni etiquetas no soportadas.
-7. Para saltos de línea, usa saltos reales (\\n), no etiquetas HTML.
+    Devuelve ÚNICAMENTE la traducción al {target_language}
+    ENTRE las etiquetas <salida> y </salida>.
 
-El resultado debe ser un mensaje profesional listo para enviar.
-"""
+    REGLAS:
+    - Nada fuera de <salida>
+    - No etiquetas adicionales
+    - No texto original
+    - No explicaciones
 
-    prompt = f"{SYSTEM_INSTRUCTIONS}\n\nTexto original:\n{user_text}\n\nTraducción:"
+    Ejemplo válido:
+    <salida>Hello, I just wanted to confirm tomorrow’s meeting.</salida>
+    """
+
+    prompt = (
+            SYSTEM_INSTRUCTIONS
+            + "\n\nTEXTO A TRADUCIR:\n"
+            + user_text
+    )
 
     typing_done = asyncio.get_event_loop().create_future()
 
@@ -60,6 +64,7 @@ El resultado debe ser un mensaje profesional listo para enviar.
 
     try:
         ai_text = await generate_response(prompt)
+        ai_text = sanitize_all(ai_text)
     except Exception as e:
         ai_text = f"Error al generar la traducción: {e}"
     finally:
