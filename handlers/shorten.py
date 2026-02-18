@@ -9,7 +9,7 @@ from utils.sanitize import sanitize_all
 
 
 async def shorten(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Get text after /shorten
+    # Get text after /shorten.
     user_text = " ".join(context.args)
 
     # If no text provided, show usage message
