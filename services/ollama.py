@@ -8,9 +8,11 @@ async def generate_response(prompt: str) -> str:
         try:
             # Send prompt to Ollama API
             response = requests.post(
-                "http://localhost:11434/api/generate",
+                # "http://localhost:11434/api/generate",
+                "http://ollama:11434/api/generate",
                 json={
-                    "model": "gpt-oss:20b",
+                    "model": "llama3:8b",
+                    # "model": "gpt-oss:20b",
                     # "model": "gemma2:latest",
                     "prompt": prompt,
                     "stream": False,
