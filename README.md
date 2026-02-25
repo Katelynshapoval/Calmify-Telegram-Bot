@@ -5,6 +5,30 @@ Built for emails, workplace communication, and polished writing directly inside 
 
 ---
 
+## Application Preview
+
+### Bot Start
+
+![Start Preview](/images/start.png)
+
+---
+
+### Available Commands Overview
+
+![Commands Preview 1](/images/commands1.png)
+
+![Commands Preview 2](/images/commands2.png)
+
+![Commands Preview 3](/images/commands3.png)
+
+---
+
+### Help Command
+
+![Help Preview](/images/help.png)
+
+---
+
 ## Features
 
 This bot acts as a professional writing assistant and can:
@@ -21,7 +45,7 @@ This bot acts as a professional writing assistant and can:
 ## Supported Commands
 
 | Command       | Description                                   |
-|---------------|-----------------------------------------------|
+| ------------- | --------------------------------------------- |
 | `/rewrite`    | Rewrite a message into a professional version |
 | `/tip`        | Get writing advice and best practices         |
 | `/check`      | Review grammar, spelling, and tone            |
@@ -35,9 +59,9 @@ This bot acts as a professional writing assistant and can:
 ## Smart Message Handling
 
 - The bot accepts messages **without commands** only if they are related to:
-    - Emails
-    - Professional or workplace communication
-    - Formal written messages
+  - Emails
+  - Professional or workplace communication
+  - Formal written messages
 
 - If a message is outside this scope, the bot responds that the request is not supported.
 
